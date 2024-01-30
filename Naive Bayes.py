@@ -1,16 +1,19 @@
-import numpy as np 
 import pandas as pd 
+import matplotlib.pyplot as plt 
+import seaborn as sns
+from matplotlib import style
+style.use('ggplot')
 import re
-import nltk
-from nltk.corpus import stopwords
-nltk.download('stopwords')
-stop_words = set(stopwords.words("english"))
-from nltk.stem.porter import PorterStemmer
 from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
+from nltk.corpus import stopwords
+stop_words = set(stopwords.words("english"))
+from wordcloud import WordCloud
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
-from sklearn.naive_bayes import GaussianNB
-from sklearn.metrics import accuracy_score,f1_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix,ConfusionMatrixDisplay,f1_score
+
 
 df = pd.read_csv("C:/school things/Courses/2023fall/Data and social media analysis/Finanal project/OLIDv1.0/olid-training-v1.0.tsv",sep='\t')
 df.head()
@@ -28,19 +31,99 @@ def data_processing(tweet):
     return " ".join(filtered_tweets)
 
 df.tweet = df['tweet'].apply(data_processing)
+df = df.drop_duplicates("tweet")
+df['subtask_a'].value_counts()
+fig = plt.figure(figsize=(5,5))
+sns.countplot(x = 'subtask_a',data=df)
+
+fig = plt.figure(figsize=(7,7))
+color = ("red","blue")
+wp = {'linewidth':2, 'edgecolor': "black"}
+tags = df['subtask_a'].value_counts()
+explode = (0.1,0.1)
+tags.plot(kind='pie',autopct = '%1.1f%%',shadow=True, colors = color, startangle = 90,
+          wedgeprops = wp, explode= explode, label='')
+plt.title('Distribution of sentiments')
+
+non_offensive_tweets = df[df.subtask_a == 'NOT']
+text = " ".join([word for word in non_offensive_tweets['tweet']])
+plt.figure(figsize=(20,15), facecolor='None')
+wordcloud = WordCloud(max_words=500, width=1600, height=800).generate(text)
+plt.imshow(wordcloud, interpolation='bilinear')
+plt.title('Most frequent words in non offensive tweets', fontsize = 19)
+plt.show()
+
+vect = TfidfVectorizer(ngram_range=(1,2)).fit(df['tweet'])
+feature_names = vect.get_feature_names_out()
+print('Number of features: {}\n'.format(len(feature_names)))
+print('First 20 features : \n{}'.format(feature_names[:20]))
 
 vect = TfidfVectorizer(ngram_range=(1,3)).fit(df['tweet'])
+feature_names = vect.get_feature_names_out()
+print('Number of features: {}\n'.format(len(feature_names)))
+print('First 20 features : \n{}'.format(feature_names[:20]))
+
 X = df['tweet']
 Y = df['subtask_a']
+X = vect.transform(X)
 
-X_train, X_test, y_train, y_test = train_test_split(X,Y,test_size=0.2, random_state=42)
-X_train = vect.transform(X_train).toarray()  # Convert to dense matrix
-X_test = vect.transform(X_test).toarray() 
-nb = GaussianNB()
-nb.fit(X_train,y_train)
-nb_predict = nb.predict(X_test)
-nb_acc = accuracy_score(nb_predict,y_test)
-print('Test accuarcy : {:.2f}%'.format(nb_acc*100))
-print(round(f1_score(nb_predict, y_test, pos_label='OFF'), 2))
-#Test accuarcy : 55.51%
-#0.47
+x_train, x_test, y_train, y_test = train_test_split(X,Y,test_size=0.2,random_state=42)
+
+print(f'size of x_train {x_train.shape}')
+print(f'size of y_train {y_train.shape}')
+print(f'size of x_test {x_test.shape}')
+print(f'size of y_test {y_test.shape}')
+
+logreg = LogisticRegression()
+logreg.fit(x_train,y_train)
+logreg_predict = logreg.predict(x_test)
+logreg_acc = accuracy_score(logreg_predict,y_test)
+print('Test accuarcy : {:.2f}%'.format(logreg_acc*100))
+print(round(f1_score(y_test, logreg_predict,pos_label='OFF'),2))
+#Test accuarcy : 68.56%
+#F1 = 0.2
+cm = confusion_matrix(y_test,logreg_predict)
+sns.heatmap(cm,
+            annot= True,
+            fmt='g',
+            xticklabels=['OFF','NOT'],
+            yticklabels=['OFF','NOT'])
+plt.ylabel('Prediction', fontsize = 10)
+plt.xlabel('Actual',fontsize = 10)
+plt.title("Logistic Regression", fontsize = 13)
+plt.show()
+#Chinese Logistic Baseline
+df_cn = pd.read_csv("C:/school things/Courses/2023fall/Data and social media analysis/Finanal project/COLD/train.csv",sep=',')
+
+vect = TfidfVectorizer(ngram_range=(1,3)).fit(df_cn['TEXT'])
+
+X_1 = df_cn['TEXT']
+Y_1 = df_cn['label']
+X_1 = vect.transform(X_1)
+
+x_train_cn,x_test_cn,y_train_cn,y_test_cn = train_test_split(X_1,Y_1, test_size= 0.2,random_state=42)
+
+print(f'size of x_train {x_train_cn.shape}')
+print(f'size of y_train {y_train_cn.shape}')
+print(f'size of x_test {x_test_cn.shape}')
+print(f'size of y_test {y_test_cn.shape}')
+logreg = LogisticRegression()
+
+logreg.fit(x_train_cn,y_train_cn)
+logreg_predict_cn = logreg.predict(x_test_cn)
+logreg_acc_cn = accuracy_score(logreg_predict_cn, y_test_cn)
+print('Test accuarcy : {:.2f}%'.format(logreg_acc_cn*100))
+print(round(f1_score(y_test_cn, logreg_predict_cn,pos_label=1),2))
+#Test accuarcy : 58.26%
+#0.35
+cm = confusion_matrix(y_test_cn,logreg_predict_cn)
+sns.heatmap(cm,
+            annot= True,
+            fmt='g',
+            xticklabels=[1,0],
+            yticklabels=[1,0])
+plt.ylabel('Prediction', fontsize = 10)
+plt.xlabel('Actual',fontsize = 10)
+plt.title("Logistic Regression for Chinese", fontsize = 13)
+plt.show()
+
