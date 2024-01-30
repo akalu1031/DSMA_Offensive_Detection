@@ -14,6 +14,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix,ConfusionMatrixDisplay,f1_score
 
+
 df = pd.read_csv("C:/school things/Courses/2023fall/Data and social media analysis/Finanal project/OLIDv1.0/olid-training-v1.0.tsv",sep='\t')
 df.head()
 df.info()
@@ -81,7 +82,16 @@ print('Test accuarcy : {:.2f}%'.format(logreg_acc*100))
 print(round(f1_score(y_test, logreg_predict,pos_label='OFF'),2))
 #Test accuarcy : 68.56%
 #F1 = 0.2
-
+cm = confusion_matrix(y_test,logreg_predict)
+sns.heatmap(cm,
+            annot= True,
+            fmt='g',
+            xticklabels=['OFF','NOT'],
+            yticklabels=['OFF','NOT'])
+plt.ylabel('Prediction', fontsize = 10)
+plt.xlabel('Actual',fontsize = 10)
+plt.title("Logistic Regression", fontsize = 13)
+plt.show()
 #Chinese Logistic Baseline
 df_cn = pd.read_csv("C:/school things/Courses/2023fall/Data and social media analysis/Finanal project/COLD/train.csv",sep=',')
 
@@ -106,19 +116,14 @@ print('Test accuarcy : {:.2f}%'.format(logreg_acc_cn*100))
 print(round(f1_score(y_test_cn, logreg_predict_cn,pos_label=1),2))
 #Test accuarcy : 58.26%
 #0.35
-from sklearn.model_selection import GridSearchCV
-import warnings
-warnings.filterwarnings('ignore')
-param_grid = {'C':[100,10,1.0,0.1,0.01], 'solver' :['newton-cg','lbfgs','liblinear'] }
-grid = GridSearchCV(LogisticRegression(), param_grid,cv=5)
-grid.fit(x_train,y_train)
-print('Best Cross validation score: {:.2f}'.format(grid.best_score_))
-print('Best parameters: ', grid.best_params_)
+cm = confusion_matrix(y_test_cn,logreg_predict_cn)
+sns.heatmap(cm,
+            annot= True,
+            fmt='g',
+            xticklabels=[1,0],
+            yticklabels=[1,0])
+plt.ylabel('Prediction', fontsize = 10)
+plt.xlabel('Actual',fontsize = 10)
+plt.title("Logistic Regression for Chinese", fontsize = 13)
+plt.show()
 
-y_pred = grid.predict(x_test)
-logreg_acc = accuracy_score(y_pred,y_test)
-print('Test accuracy : {:.2f}%'.format(logreg_acc*100))
-
-print(round(f1_score(y_test, y_pred,pos_label='OFF'),2))
-#Test accuracy : 0.73
-#F1 = 0.45
